@@ -35,10 +35,7 @@ def main():
     # Initialise empty list to store extracted text
     text_extract = text_extraction(soup.body)
 
-    md_text = ""
-    for text, style in text_extract:
-        md_text += formatting(text,style,classes)
-
+    md_text = formatting(text_extract, classes)
     print(md_text)
 
 
@@ -121,34 +118,59 @@ def text_extraction(text):
     return texts
 
 
-def formatting(text,style,classes):
-    # Indicator for emphasis level (number of "*" to add)
-    emphasis = 0
-    # Indicator for title level (number of "#" to add)
-    ttl_lvl = 0
-    # If there is a style attributed to this text, look through it
-    if style in classes:
-        # If there is boldness, add "**"
-        if "boldness" in classes[style]:
-            emphasis += 2
-        # If there is italicism, add "*"
-        if "italicism" in classes[style]:
-            emphasis += 1
-        # If font-size if present in class style
-        if "font-size" in classes[style]:
-            # find out if font-size is a heading level
-            if match := re.search(r"H(\d+)", classes[style]["font-size"]):
-                # Add number of "#" according to heading level
-                ttl_lvl += int(match.group(1))
+def formatting(text_extract,classes):
+    # Storage of converted text
+    md_text = ""
+    # Storer of previous heading level
+    prv_ttl_lvl = 0
 
+    for text, style in text_extract:
+        # Indicator for emphasis level (number of "*" to add)
+        emphasis = 0
+        # Indicator for title level (number of "#" to add)
+        ttl_lvl = 0
+        # If there is a style attributed to this text, look through it
+        if style in classes:
+            # If there is boldness, add "**"
+            if "boldness" in classes[style]:
+                emphasis += 2
+            # If there is italicism, add "*"
+            if "italicism" in classes[style]:
+                emphasis += 1
+            # If font-size if present in class style
+            if "font-size" in classes[style]:
+                # find out if font-size is a heading level
+                if match := re.search(r"H(\d+)", classes[style]["font-size"]):
+                    # Add number of "#" according to heading level
+                    ttl_lvl += int(match.group(1))
 
+        # If current heading level is same as one before, and is a heading
+        if prv_ttl_lvl == ttl_lvl and ttl_lvl > 0:
+            if match := re.search(r"^(\s*)(.*?)(\s*)$", text):
+                # Compile markdown text with hyphen between this and previous, don't add heading level
+                text = "- " + "*"*emphasis + match.group(2) + "*"*emphasis + match.group(3)
+
+        # If there is a heading level, add hashes
+        elif ttl_lvl > 0:
     # Identify and split into groups. (whitespace)(any text)(whitespace)
-    if match := re.search(r"^(\s*)(.*?)(\s*)$", text):
-        # Compile markdown text
-        text = "#"*ttl_lvl + " " + match.group(1) + "*"*emphasis + match.group(2) + "*"*emphasis + match.group(3)
+            if match := re.search(r"^(\s*)(.*?)(\s*)$", text):
+                # Compile markdown text
+                text = "#"*ttl_lvl + " " + "*"*emphasis + match.group(2) + "*"*emphasis + match.group(3)
 
-    # Return text
-    return text
+        # Otherwise add text
+        else:
+            if match := re.search(r"^(\s*)(.*?)(\s*)$", text):
+                # Compile markdown text
+                text = "*"*emphasis + match.group(2) + "*"*emphasis + match.group(3)
+
+        # At end of each loop
+        # Update previous title level
+        prv_ttl_lvl = ttl_lvl
+        # Append formatted text
+        md_text += text
+
+    # Upon completion of all loops, Return text
+    return md_text
 
 
 
