@@ -4,14 +4,15 @@ from statistics import mode
 
 def main():
     # Open the file we want and save it as soup
-    with open("html.txt", "r") as file:
+    with open("/home/ben/Python/Projects/ODT_converter/html.txt", "r") as file:
         soup = BeautifulSoup(file, "html.parser")
     
     # Create an empty dictionary to store unique tags classes found in body, and later their respective attributes
     classes = dict()
 
+    # For each css class associated with <p> or <span>
     for tag in soup.find_all(["p","span"]):
-        # Add it to the set
+        # Add it to the dictionary
         classes[tag["class"][0]] = None
 
     # Update dictionary with class info
@@ -24,11 +25,21 @@ def main():
     
     # For each class name, convert the font size to body or appropriate heading level (determined by position in larger font list)
     for class_name in classes:
+        # if font size is not present, or it is less than or equal to the modal font, assign it the body tag
         if "font-size" not in classes[class_name] or classes[class_name]["font-size"] <= modal_font:
             classes[class_name]["font-size"] = "body"
+        # Otherwise, assign it to H# according to the font-sizes position in our larger font index (+1)
         else:
             classes[class_name]["font-size"] = "H" + str(larger_fonts.index(classes[class_name]["font-size"]) + 1)
 
+    # Initialise empty list to store extracted text
+    text_extract = text_extraction(soup.body)
+
+    md_text = ""
+    for text, style in text_extract:
+        md_text += formatting(text,style,classes)
+
+    print(md_text)
 
 
 
@@ -91,6 +102,55 @@ def large_fonts(classes, mode_font):
             larger_fonts.add(classes[class_name]["font-size"])
 
     return sorted(larger_fonts, reverse=True)
+
+
+def text_extraction(text):
+    # Initialise empty texts list
+    texts = []
+    # For all of the strings present in the body of the HTML file
+    for string in text.strings:
+        # Intialise empty storer of css_class
+        css_classes = ""
+        # If string has a parent
+        if string.parent:
+            # Get the CSS class of the parent element
+            css_classes = ' '.join(string.parent.get("class", ""))
+        # Append the string and the css class as a tuple into the texts list
+        texts.append((string, css_classes))
+    # Return the text
+    return texts
+
+
+def formatting(text,style,classes):
+    # Indicator for emphasis level (number of "*" to add)
+    emphasis = 0
+    # Indicator for title level (number of "#" to add)
+    ttl_lvl = 0
+    # If there is a style attributed to this text, look through it
+    if style in classes:
+        # If there is boldness, add "**"
+        if "boldness" in classes[style]:
+            emphasis += 2
+        # If there is italicism, add "*"
+        if "italicism" in classes[style]:
+            emphasis += 1
+        # If font-size if present in class style
+        if "font-size" in classes[style]:
+            # find out if font-size is a heading level
+            if match := re.search(r"H(\d+)", classes[style]["font-size"]):
+                # Add number of "#" according to heading level
+                ttl_lvl += int(match.group(1))
+
+
+    # Identify and split into groups. (whitespace)(any text)(whitespace)
+    if match := re.search(r"^(\s*)(.*?)(\s*)$", text):
+        # Compile markdown text
+        text = "#"*ttl_lvl + " " + match.group(1) + "*"*emphasis + match.group(2) + "*"*emphasis + match.group(3)
+
+    # Return text
+    return text
+
+
 
 
 if __name__ == "__main__":
