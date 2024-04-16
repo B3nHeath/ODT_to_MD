@@ -1,11 +1,11 @@
 from bs4 import BeautifulSoup
 import re
 from statistics import mode
+import sys
 
 def main():
     # Open the file we want and save it as soup
-    with open("/home/ben/Python/Projects/ODT_converter/html.txt", "r") as file:
-        soup = BeautifulSoup(file, "html.parser")
+    soup = BeautifulSoup(sys.argv[1], "html.parser")
     
     # Create an empty dictionary to store unique tags classes found in body, and later their respective attributes
     classes = dict()
@@ -36,7 +36,9 @@ def main():
     text_extract = text_extraction(soup.body)
 
     md_text = formatting(text_extract, classes)
-    print(md_text)
+
+    with open(f"/home/ben/Python/Projects/ODT_converter/New_files/{sys.argv[2]}.md", "w") as file:
+        file.write(md_text)
 
 
 
@@ -125,6 +127,8 @@ def formatting(text_extract,classes):
     prv_ttl_lvl = 0
 
     for text, style in text_extract:
+        # Double up all newline characters (looks better for markdown)
+        text = text.replace("\n", "\n\n")
         # Indicator for emphasis level (number of "*" to add)
         emphasis = 0
         # Indicator for title level (number of "#" to add)
@@ -146,26 +150,27 @@ def formatting(text_extract,classes):
 
         # If current heading level is same as one before, and is a heading
         if prv_ttl_lvl == ttl_lvl and ttl_lvl > 0:
-            if match := re.search(r"^(\s*)(.*?)(\s*)$", text):
+            if match := re.search(r"^(\s*)(.+?)(\s*)$", text):
                 # Compile markdown text with hyphen between this and previous, don't add heading level
-                text = "- " + "*"*emphasis + match.group(2) + "*"*emphasis + match.group(3)
+                text = "- " + match.group(2) + match.group(3)
 
         # If there is a heading level, add hashes
         elif ttl_lvl > 0:
     # Identify and split into groups. (whitespace)(any text)(whitespace)
-            if match := re.search(r"^(\s*)(.*?)(\s*)$", text):
+            if match := re.search(r"^(\s*)(.+?)(\s*)$", text):
                 # Compile markdown text
-                text = "#"*ttl_lvl + " " + "*"*emphasis + match.group(2) + "*"*emphasis + match.group(3)
+                text = "#"*(ttl_lvl+1) + " " + match.group(2) + match.group(3)
 
         # Otherwise add text
         else:
-            if match := re.search(r"^(\s*)(.*?)(\s*)$", text):
+            if match := re.search(r"^(\s*)(.+?)(\s*)$", text):
                 # Compile markdown text
                 text = "*"*emphasis + match.group(2) + "*"*emphasis + match.group(3)
 
         # At end of each loop
         # Update previous title level
         prv_ttl_lvl = ttl_lvl
+
         # Append formatted text
         md_text += text
 
